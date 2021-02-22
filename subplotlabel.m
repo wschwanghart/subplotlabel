@@ -16,7 +16,8 @@ classdef subplotlabel < handle
 %     subplotlabel(ax,'c') assigns the letter 'c' to the axis ax.
 %
 %     subplotlabel(fig,'A') assigns the letters 'A','B',... to the axes in
-%     the figure with the handle fig. letter must be 'A','a', or '1'.
+%     the figure with the handle fig. letter must be 'A','a', 'I', 'i', 
+%     or '1'.
 %     
 % Input arguments
 %     
@@ -71,8 +72,11 @@ classdef subplotlabel < handle
 %
 % See also: text
 %
+% Note: roman numericals are computed using Francois Beauducel function
+% NUM2ROMAN (https://github.com/beaudu/romanum)
+%
 % Author: Wolfgang Schwanghart (w.schwanghart[at]geo.uni-potsdam.de)
-% Date: 10. January, 2021
+% Date: 22. February, 2021
 
     properties
         label
@@ -115,10 +119,17 @@ classdef subplotlabel < handle
                     case '1'
                         letters = num2cell(1:numel(hax));
                         letters = cellfun(@num2str,letters,'UniformOutput',false);
+                    case {'i' 'I'}
+                        letters = cellfun(@roman,num2cell(1:numel(hax)),'UniformOutput',false);
+                        switch p.Results.value
+                            case 'i'
+                                letters = lower(letters);
+                        end
+                        
                     otherwise
                         error('TopoToolbox:subplotlabel',...
                             ['If the first argument is a handle to a figure, letter \newline' ...
-                             'must be ''A'', ''a'', or ''1''.']);
+                             'must be ''A'', ''a'', ''I'' ''i'' or ''1''.']);
                 end
                 
                 % Sort axes from top-left to bottom-right
@@ -182,9 +193,9 @@ classdef subplotlabel < handle
                 
                 switch halign
                     case 'right'
-                        letter = [letter ' '];
+                        letter = [' ' letter ' '];
                     case 'left'
-                        letter = [' ' letter];
+                        letter = [' ' letter ' '];
                 end
                 
                 if ishold(ax)
@@ -288,4 +299,21 @@ classdef subplotlabel < handle
     
 end
 
-
+function x=roman(n)
+% this subfunction converts numbers up to 4999
+r = reshape('IVXLCDM   ',2,5);	% the 3 last blank chars are to avoid error for n >= 1000
+x = '';
+m = floor(log10(n)) + 1;	% m is the number of digit
+% n is processed sequentially for each digit
+for i = m:-1:1
+	ii = fix(n/10^(i-1));	% ii is the digit (0 to 9)
+	% Roman numeral is a concatenation of r(1:2,i) and r(1,i+1)
+	% combination with regular rules (exception for 4000 = MMMM)
+	% Note: the expression uses REPMAT behavior which returns empty
+	% string for N <= 0
+	x = [x,repmat(r(1,i),1,ii*(ii < 4 | (ii==4 & i==4)) + (ii == 9) + (ii==4 & i < 4)), ...
+		   repmat([r(2,i),repmat(r(1,i),1,ii-5)],1,(ii >= 4 & ii <= 8 & i ~= 4)), ...
+		   repmat(r(1,i+1),1,(ii == 9))];
+	n = n - ii*10^(i-1);	% substract the most significant digit
+end
+end
